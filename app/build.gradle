@@ -26,15 +26,29 @@ android {
     }
 
     buildFeatures { compose true }
+
+    // ВАЖНО: Compose Compiler совместим с Kotlin 1.9.24
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+
+    // Единый таргет Java/Kotlin = 17
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
     kotlinOptions { jvmTarget = '17' }
+
     packagingOptions {
         resources { excludes += ["/META-INF/{AL2.0,LGPL2.1}"] }
     }
 }
 
+// (доп.) Зафиксировать toolchain на 17 — не обязательно, но полезно
+kotlin {
+    jvmToolchain(17)
+}
+
 dependencies {
-    // Compose BOM (все версии подтянет отсюда)
+    // Compose BOM — тянет согласованные версии
     def composeBom = platform("androidx.compose:compose-bom:2024.06.00")
     implementation composeBom
     androidTestImplementation composeBom
@@ -55,83 +69,8 @@ dependencies {
 
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.6"
     implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6"
-}  id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
-    id 'org.jetbrains.kotlin.kapt'
-}
 
-android {
-    namespace 'com.example.shifttracker'
-    compileSdk 34
-
-    defaultConfig {
-        applicationId "com.example.shifttracker"
-        minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-        vectorDrawables { useSupportLibrary true }
-    }
-
-    buildTypes {
-        debug { }
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-
-    buildFeatures { compose true }
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
-
-    // 🔹 НОВОЕ: выравниваем Java на 17
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    // 🔹 НОВОЕ: выравниваем Kotlin/JVM target
-    kotlinOptions { jvmTarget = '17' }
-
-    packagingOptions {
-        resources { excludes += ["/META-INF/{AL2.0,LGPL2.1}"] }
-    }
-}
-
-// 🔹 НОВОЕ: гарантируем toolchain Java 17 для Kotlin
-kotlin {
-    jvmToolchain(17)
-}
-
-// 🔹 НОВОЕ: на всякий случай фикс для kapt (javac под 17)
-kapt {
-    javacOptions {
-        option("-source", "17")
-        option("-target", "17")
-    }
-}
-
-dependencies {
-    def composeBom = platform("androidx.compose:compose-bom:2024.04.01")
-    implementation composeBom
-    androidTestImplementation composeBom
-
-    implementation "androidx.core:core-ktx:1.13.1"
-    implementation "androidx.activity:activity-compose:1.9.2"
-    implementation "androidx.compose.ui:ui"
-    implementation "androidx.compose.ui:ui-tooling-preview"
-    implementation "androidx.compose.material3:material3:1.2.1"
-    debugImplementation "androidx.compose.ui:ui-tooling"
-    implementation "androidx.compose.material:material-icons-extended"
-
-    implementation "androidx.room:room-runtime:2.6.1"
-    implementation "androidx.room:room-ktx:2.6.1"
-    kapt "androidx.room:room-compiler:2.6.1"
-
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.6"
-    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6"
-
-    // Материал-компоненты (даёт темы Material3)
+    // Для тем Material3 (если пригодится в будущем)
     implementation "com.google.android.material:material:1.12.0"
-    // (опционально) базовые виджеты
     implementation "androidx.appcompat:appcompat:1.7.0"
 }
