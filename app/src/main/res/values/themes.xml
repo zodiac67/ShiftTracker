@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Minimal Material 3 app theme for View system (NoActionBar). -->
-    <style name="Theme.ShiftTracker" parent="Theme.Material3.DayNight.NoActionBar" />
-</resources>
