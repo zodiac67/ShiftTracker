@@ -1,94 +1,38 @@
 package com.example.shifttracker.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Divider
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.shifttracker.data.ProjectEntity
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
-private enum class PayMode { FIXED, HALF_FIXED, HOURLY }
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddShiftDialog(
     projects: List<ProjectEntity>,
     onDismiss: () -> Unit,
     onSave: (date: LocalDate, projectId: Long, hours: Double, customPay: Double, note: String) -> Unit
 ) {
-    val datePickerState = androidx.compose.material3.rememberDatePickerState(
-        initialSelectedDateMillis = System.currentTimeMillis()
-    )
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
 
-    var expanded by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf(projects.firstOrNull()) }
 
-    var payMode by remember { mutableStateOf(PayMode.FIXED) }
+    // режим ввода: почасово или фикс
+    var useFixed by remember { mutableStateOf(false) }
+
     var hoursText by remember { mutableStateOf("") }
     var payText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
-    var alsoNextDay by remember { mutableStateOf(false) }
-
-    // Автоподстановка суммы/очистка полей при смене проекта или режима
-    LaunchedEffect(selectedProject, payMode) {
-        val fixed = selectedProject?.fixed ?: 0.0
-        when (payMode) {
-            PayMode.FIXED -> {
-                if (fixed > 0) payText = fixed.clean()
-                hoursText = ""
-            }
-            PayMode.HALF_FIXED -> {
-                val half = if (fixed > 0) fixed / 2 else 0.0
-                if (half > 0) payText = half.clean()
-                hoursText = ""
-            }
-            PayMode.HOURLY -> {
-                payText = ""
-            }
-        }
-    }
-
-    val canSave by remember {
-        derivedStateOf {
-            selectedProject != null &&
-            when (payMode) {
-                PayMode.HOURLY -> hoursText.isNotBlank()
-                else -> payText.isNotBlank()
-            }
-        }
-    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -97,84 +41,80 @@ fun AddShiftDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 560.dp)      // чтобы календарь влезал
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Календарь в скролле — все дни доступны и ничего не «режется»
+                Text("Выберите дату", style = MaterialTheme.typography.titleMedium)
                 DatePicker(state = datePickerState)
 
-                // Проект
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
+                // Выбор проекта. Без ExposedDropdownMenu.
+                Box {
                     OutlinedTextField(
-                        value = selectedProject?.name ?: "Выбери проект",
+                        value = selectedProject?.name.orEmpty(),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Проект") },
                         modifier = Modifier
-                            .menuAnchor()
                             .fillMaxWidth()
+                            .clickable { menuOpen = true }
                     )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false }
                     ) {
                         projects.forEach { p ->
                             DropdownMenuItem(
                                 text = { Text(p.name) },
-                                onClick = { selectedProject = p; expanded = false }
+                                onClick = {
+                                    selectedProject = p
+                                    menuOpen = false
+                                }
                             )
                         }
                     }
                 }
 
-                // Режим оплаты
-                Text("Тип оплаты", style = MaterialTheme.typography.labelLarge)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                // Переключатель режима + «½ фикса»
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
-                        selected = payMode == PayMode.FIXED,
-                        onClick = { payMode = PayMode.FIXED },
+                        selected = !useFixed,
+                        onClick = { useFixed = false },
+                        label = { Text("Часы") }
+                    )
+                    FilterChip(
+                        selected = useFixed,
+                        onClick = { useFixed = true },
                         label = { Text("Фикс") }
                     )
-                    FilterChip(
-                        selected = payMode == PayMode.HALF_FIXED,
-                        onClick = { payMode = PayMode.HALF_FIXED },
-                        label = { Text("1/2 фикс") }
-                    )
-                    FilterChip(
-                        selected = payMode == PayMode.HOURLY,
-                        onClick = { payMode = PayMode.HOURLY },
-                        label = { Text("Почасовая") }
-                    )
+                    if (useFixed) {
+                        AssistChip(
+                            onClick = {
+                                val v = payText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                                val half = if (v > 0) v / 2.0 else 0.0
+                                payText = if (half == 0.0) "" else half.toString()
+                            },
+                            label = { Text("½ фикса") }
+                        )
+                    }
                 }
 
-                // Часы — актуально только для почасовой
                 OutlinedTextField(
                     value = hoursText,
                     onValueChange = { hoursText = it },
                     label = { Text("Часы") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = payMode == PayMode.HOURLY,
-                    placeholder = {
-                        val rate = selectedProject?.hourly ?: 0.0
-                        if (payMode == PayMode.HOURLY && rate > 0) Text("Ставка ${rate.clean()} ₽/час")
-                    }
+                    enabled = !useFixed,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                // Сумма — для фикс/полуфикс; можно править вручную
                 OutlinedTextField(
                     value = payText,
                     onValueChange = { payText = it },
-                    label = { Text("Сумма (₽)") },
+                    label = { Text("Сумма (фикс)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = payMode != PayMode.HOURLY
+                    enabled = useFixed,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
@@ -183,98 +123,23 @@ fun AddShiftDialog(
                     label = { Text("Заметка") },
                     modifier = Modifier.fillMaxWidth()
                 )
-
-                Divider()
-
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Checkbox(checked = alsoNextDay, onCheckedChange = { alsoNextDay = it })
-                    Spacer(Modifier.width(8.dp))
-                    Text("Добавить такую же смену на следующий день")
-                }
             }
         },
         confirmButton = {
-            TextButton(
-                enabled = canSave,
-                onClick = {
-                    val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
-                    val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
-                    val pid = selectedProject!!.id
+            TextButton(onClick = {
+                val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
 
-                    val hours = hoursText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                    val custom = payText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                val projectId = selectedProject?.id ?: 0L
+                val hours = hoursText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                val fixedPay = payText.replace(',', '.').toDoubleOrNull() ?: 0.0
 
-                    onSave(date, pid, hours, custom, note)
-                    if (alsoNextDay) {
-                        onSave(date.plusDays(1), pid, hours, custom, note)
-                    }
-                    onDismiss()
+                if (projectId != 0L) {
+                    // Если выбран «Фикс» — передаём фикс, иначе 0 (вся логика расчёта у тебя в слое данных)
+                    onSave(date, projectId, hours, if (useFixed) fixedPay else 0.0, note)
                 }
-            ) { Text("Сохранить") }
+            }) { Text("Сохранить") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
     )
-}
-
-@Composable
-fun AddProjectDialog(
-    onDismiss: () -> Unit,
-    onSave: (name: String, hourly: Double, fixed: Double) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var hourlyText by remember { mutableStateOf("") }
-    var fixedText by remember { mutableStateOf("") }
-    val canSave by remember { derivedStateOf { name.isNotBlank() } }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Новый проект") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Название") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = hourlyText,
-                    onValueChange = { hourlyText = it },
-                    label = { Text("Ставка в час (₽)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = fixedText,
-                    onValueChange = { fixedText = it },
-                    label = { Text("Фикс за смену (₽)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Text(
-                    "Укажи ИЛИ почасовую ставку, ИЛИ фикс — достаточно одного поля.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = canSave,
-                onClick = {
-                    val hourly = hourlyText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                    val fixed = fixedText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                    onSave(name.trim(), hourly, fixed)
-                    onDismiss()
-                }
-            ) { Text("Сохранить") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
-    )
-}
-
-/* -------- helpers -------- */
-
-private fun Double.clean(): String {
-    val s = toString()
-    return if (s.endsWith(".0")) s.dropLast(2) else s
 }
