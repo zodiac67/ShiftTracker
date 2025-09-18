@@ -46,11 +46,26 @@ fun AddShiftDialog(
                         }
                     }
                 }
-                OutlinedTextField(value = hoursText, onValueChange = { hoursText = it }, label = { Text("Часы") },
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = payText, onValueChange = { payText = it }, label = { Text("Сумма вручную") },
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Заметка") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    value = hoursText,
+                    onValueChange = { hoursText = it },
+                    label = { Text("Часы") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = payText,
+                    onValueChange = { payText = it },
+                    label = { Text("Сумма вручную") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Заметка") },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
@@ -77,12 +92,30 @@ fun AddProjectDialog(onDismiss: () -> Unit, onSave: (name: String, hourly: Doubl
         title = { Text("Новый проект") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Название") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = hourlyText, onValueChange = { hourlyText = it }, label = { Text("Ставка в час") },
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = fixedText, onValueChange = { fixedText = it }, label = { Text("Фикс за смену") },
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                Text("Укажи ИЛИ почасовую ставку, ИЛИ фикс — достаточно одного поля.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = hourlyText,
+                    onValueChange = { hourlyText = it },
+                    label = { Text("Ставка в час") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = fixedText,
+                    onValueChange = { fixedText = it },
+                    label = { Text("Фикс за смену") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    "Укажи ИЛИ почасовую ставку, ИЛИ фикс — достаточно одного поля.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         confirmButton = {
