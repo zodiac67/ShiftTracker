@@ -3,11 +3,11 @@ package com.example.shifttracker.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.shifttracker.data.ProjectEntity
@@ -27,7 +27,9 @@ fun AddShiftDialog(
     var menuOpen by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf(projects.firstOrNull()) }
 
+    // режим ввода: почасово или фикс
     var useFixed by remember { mutableStateOf(false) }
+
     var hoursText by remember { mutableStateOf("") }
     var payText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
@@ -39,7 +41,7 @@ fun AddShiftDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 560.dp)
+                    .heightIn(max = 560.dp) // чтобы календарь помещался на экране
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -73,6 +75,7 @@ fun AddShiftDialog(
                     }
                 }
 
+                // Переключатель режима + «½ фикса»
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = !useFixed,
