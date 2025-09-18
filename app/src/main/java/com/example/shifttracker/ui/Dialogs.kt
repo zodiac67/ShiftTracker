@@ -7,7 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.shifttracker.data.ProjectEntity
@@ -27,9 +27,7 @@ fun AddShiftDialog(
     var menuOpen by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf(projects.firstOrNull()) }
 
-    // режим ввода: почасово или фикс
     var useFixed by remember { mutableStateOf(false) }
-
     var hoursText by remember { mutableStateOf("") }
     var payText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
@@ -41,14 +39,14 @@ fun AddShiftDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 560.dp)      // чтобы календарь влезал
+                    .heightIn(max = 560.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("Выберите дату", style = MaterialTheme.typography.titleMedium)
                 DatePicker(state = datePickerState)
 
-                // Выбор проекта. Без ExposedDropdownMenu.
+                // Выбор проекта (без Exposed* API)
                 Box {
                     OutlinedTextField(
                         value = selectedProject?.name.orEmpty(),
@@ -75,7 +73,6 @@ fun AddShiftDialog(
                     }
                 }
 
-                // Переключатель режима + «½ фикса»
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = !useFixed,
@@ -135,9 +132,64 @@ fun AddShiftDialog(
                 val fixedPay = payText.replace(',', '.').toDoubleOrNull() ?: 0.0
 
                 if (projectId != 0L) {
-                    // Если выбран «Фикс» — передаём фикс, иначе 0 (вся логика расчёта у тебя в слое данных)
                     onSave(date, projectId, hours, if (useFixed) fixedPay else 0.0, note)
                 }
+            }) { Text("Сохранить") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
+    )
+}
+
+@Composable
+fun AddProjectDialog(
+    onDismiss: () -> Unit,
+    onSave: (name: String, hourly: Double, fixed: Double) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var hourlyText by remember { mutableStateOf("") }
+    var fixedText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Новый проект") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = hourlyText,
+                    onValueChange = { hourlyText = it },
+                    label = { Text("Ставка в час") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = fixedText,
+                    onValueChange = { fixedText = it },
+                    label = { Text("Фикс за смену") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    "Укажи ИЛИ почасовую ставку, ИЛИ фикс — достаточно одного поля.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val hourly = hourlyText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                val fixed = fixedText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                if (name.isNotBlank()) onSave(name.trim(), hourly, fixed)
             }) { Text("Сохранить") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
