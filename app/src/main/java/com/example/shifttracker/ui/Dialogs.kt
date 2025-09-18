@@ -19,10 +19,8 @@ fun AddShiftDialog(
     onSave: (date: LocalDate, projectId: Long, hours: Double, customPay: Double, note: String) -> Unit
 ) {
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
-
     var expanded by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf(projects.firstOrNull()) }
-
     var hoursText by remember { mutableStateOf("") }
     var payText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
@@ -33,7 +31,6 @@ fun AddShiftDialog(
         text = {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 DatePicker(state = datePickerState)
-
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                     OutlinedTextField(
                         value = selectedProject?.name ?: "Выбери проект",
@@ -43,34 +40,16 @@ fun AddShiftDialog(
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        projects.forEach { project ->
-                            DropdownMenuItem(
-                                text = { Text(project.name) },
-                                onClick = { selectedProject = project; expanded = false }
-                            )
+                        projects.forEach { p ->
+                            DropdownMenuItem(text = { Text(p.name) }, onClick = { selectedProject = p; expanded = false })
                         }
                     }
                 }
-
-                OutlinedTextField(
-                    value = hoursText, onValueChange = { hoursText = it },
-                    label = { Text("Часы (для почасовой ставки)") },
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = payText, onValueChange = { payText = it },
-                    label = { Text("Сумма вручную (необязательно)") },
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = note, onValueChange = { note = it },
-                    label = { Text("Заметка") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                OutlinedTextField(value = hoursText, onValueChange = { hoursText = it }, label = { Text("Часы") },
+                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = payText, onValueChange = { payText = it }, label = { Text("Сумма вручную") },
+                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Заметка") }, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
@@ -88,32 +67,20 @@ fun AddShiftDialog(
 }
 
 @Composable
-fun AddProjectDialog(
-    onDismiss: () -> Unit,
-    onSave: (name: String, hourly: Double, fixed: Double) -> Unit
-) {
+fun AddProjectDialog(onDismiss: () -> Unit, onSave: (name: String, hourly: Double, fixed: Double) -> Unit) {
     var name by remember { mutableStateOf("") }
     var hourlyText by remember { mutableStateOf("") }
     var fixedText by remember { mutableStateOf("") }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Новый проект") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Название") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(
-                    value = hourlyText, onValueChange = { hourlyText = it },
-                    label = { Text("Ставка в час (если почасовая)") },
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = fixedText, onValueChange = { fixedText = it },
-                    label = { Text("Фикс за смену (если фикс)") },
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                OutlinedTextField(value = hourlyText, onValueChange = { hourlyText = it }, label = { Text("Ставка в час") },
+                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = fixedText, onValueChange = { fixedText = it }, label = { Text("Фикс за смену") },
+                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
                 Text("Укажи ИЛИ почасовую ставку, ИЛИ фикс — достаточно одного поля.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },

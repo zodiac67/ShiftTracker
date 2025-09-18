@@ -3,7 +3,7 @@
       android:label="ShiftTracker"
       android:icon="@mipmap/ic_launcher"
       android:roundIcon="@mipmap/ic_launcher_round"
-      android:theme="@style/Theme.ShiftTracker">
+      android:theme="@style/Theme.AppCompat.Light.NoActionBar">
     <activity android:name=".MainActivity" android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>

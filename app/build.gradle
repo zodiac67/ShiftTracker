@@ -1,7 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id 'kotlin-kapt'
+    id 'org.jetbrains.kotlin.kapt'
 }
 
 android {
@@ -15,6 +15,14 @@ android {
         versionCode 1
         versionName "1.0"
         vectorDrawables { useSupportLibrary true }
+    }
+
+    buildTypes {
+        debug { }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
     }
 
     buildFeatures { compose true }
@@ -37,15 +45,12 @@ dependencies {
     implementation "androidx.compose.material3:material3:1.2.1"
     debugImplementation "androidx.compose.ui:ui-tooling"
 
-    // Icons
     implementation "androidx.compose.material:material-icons-extended"
 
-    // Room
     implementation "androidx.room:room-runtime:2.6.1"
     implementation "androidx.room:room-ktx:2.6.1"
     kapt "androidx.room:room-compiler:2.6.1"
 
-    // Lifecycle / Flow
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.6"
     implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6"
 }
