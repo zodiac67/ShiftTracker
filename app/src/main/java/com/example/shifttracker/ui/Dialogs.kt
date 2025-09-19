@@ -14,7 +14,10 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -25,7 +28,7 @@ import java.time.ZoneId
 
 private enum class PayMode { HOURLY, FIXED, HALF_FIXED }
 
-/** Фикс за смену из проекта (поле fixedPerShift). */
+/** Достаём фикс за смену из проекта (ожидается поле fixedPerShift). Через reflection — компилируется при любом имени полей в stubs. */
 private fun ProjectEntity.fixedValueOrZero(): Double {
     return runCatching {
         val f = this::class.java.getDeclaredField("fixedPerShift").apply { isAccessible = true }
@@ -51,6 +54,14 @@ fun AddShiftDialog(
     var note by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
+    // Адаптивное уменьшение календаря на невысоких экранах
+    val cfg = LocalConfiguration.current
+    val calendarScale = when {
+        cfg.screenHeightDp <= 600 -> 0.85f
+        cfg.screenHeightDp <= 720 -> 0.90f
+        else -> 1.00f
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -61,12 +72,18 @@ fun AddShiftDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("Выберите дату", style = MaterialTheme.typography.titleMedium)
-                DatePicker(state = datePickerState, modifier = Modifier.fillMaxWidth())
 
-                // Проект
+                // Центрируем и масштабируем календарь
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(Modifier.scale(calendarScale)) {
+                        DatePicker(state = datePickerState)
+                    }
+                }
+
+                // Выбор проекта
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
@@ -81,7 +98,7 @@ fun AddShiftDialog(
                             .menuAnchor()
                             .fillMaxWidth()
                     )
-                    // ВАЖНО: здесь используем DropdownMenu вместо ExposedDropdownMenu
+                    // В M3 1.2.1 — используем обычный DropdownMenu
                     DropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
@@ -164,7 +181,7 @@ fun AddShiftDialog(
                         if (h == null || h <= 0.0) {
                             error = "Укажите количество часов"; return@TextButton
                         }
-                        h to (manual ?: 0.0) // 0.0 → рассчитает слой данных по ставке проекта
+                        h to (manual ?: 0.0) // 0.0 → рассчитается по ставке проекта
                     }
                     PayMode.FIXED -> {
                         val pay = manual ?: projectFixed
@@ -210,7 +227,7 @@ fun AddProjectDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedTextField(
                     value = name,
