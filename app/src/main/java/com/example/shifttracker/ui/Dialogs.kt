@@ -1,19 +1,26 @@
 package com.example.shifttracker.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.example.shifttracker.data.ProjectEntity
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+
+private enum class PayMode { HOURLY, FIXED, HALF_FIXED }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,96 +31,105 @@ fun AddShiftDialog(
 ) {
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
 
-    var menuOpen by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf(projects.firstOrNull()) }
 
-    // режим ввода: почасово или фикс
-    var useFixed by remember { mutableStateOf(false) }
-
-    var hoursText by remember { mutableStateOf("") }
-    var payText by remember { mutableStateOf("") }
+    var payMode by remember { mutableStateOf(PayMode.HOURLY) }
+    var hoursText by remember { mutableStateOf("") }       // ввод часов (для почасовой)
+    var customPayText by remember { mutableStateOf("") }   // ручная сумма (необязательно)
     var note by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(), // даст максимум ширины
+        // Убираем платформенное ограничение ширины, чтобы календарь не «обрезался» на узких экранах
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         title = { Text("Новая смена") },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 560.dp) // чтобы календарь помещался на экране
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState()), // чтобы всё всегда помещалось
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("Выберите дату", style = MaterialTheme.typography.titleMedium)
-                DatePicker(state = datePickerState)
+                // Сам календарь растягиваем на всю ширину
+                DatePicker(
+                    state = datePickerState,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                // Выбор проекта (без Exposed* API)
-                Box {
+                // Выбор проекта
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                ) {
                     OutlinedTextField(
-                        value = selectedProject?.name.orEmpty(),
+                        value = selectedProject?.name ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Проект") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                         modifier = Modifier
+                            .menuAnchor()
                             .fillMaxWidth()
-                            .clickable { menuOpen = true }
                     )
-                    DropdownMenu(
-                        expanded = menuOpen,
-                        onDismissRequest = { menuOpen = false }
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
                     ) {
                         projects.forEach { p ->
                             DropdownMenuItem(
                                 text = { Text(p.name) },
                                 onClick = {
                                     selectedProject = p
-                                    menuOpen = false
+                                    expanded = false
                                 }
                             )
                         }
                     }
                 }
 
-                // Переключатель режима + «½ фикса»
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = !useFixed,
-                        onClick = { useFixed = false },
-                        label = { Text("Часы") }
-                    )
-                    FilterChip(
-                        selected = useFixed,
-                        onClick = { useFixed = true },
-                        label = { Text("Фикс") }
-                    )
-                    if (useFixed) {
-                        AssistChip(
-                            onClick = {
-                                val v = payText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                                val half = if (v > 0) v / 2.0 else 0.0
-                                payText = if (half == 0.0) "" else half.toString()
-                            },
-                            label = { Text("½ фикса") }
+                // Режим оплаты под проектом: Часы / Фикс / ½ фикс
+                Text("Оплата", style = MaterialTheme.typography.titleSmall)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    PayMode.values().forEachIndexed { index, mode ->
+                        val first = index == 0
+                        val last = index == PayMode.values().lastIndex
+                        SegmentedButton(
+                            selected = payMode == mode,
+                            onClick = { payMode = mode },
+                            shape = SegmentedButtonDefaults.itemShape(first = first, last = last),
+                            label = {
+                                Text(
+                                    when (mode) {
+                                        PayMode.HOURLY -> "Часы"
+                                        PayMode.FIXED -> "Фикс"
+                                        PayMode.HALF_FIXED -> "½ фикс"
+                                    }
+                                )
+                            }
                         )
                     }
                 }
 
-                OutlinedTextField(
-                    value = hoursText,
-                    onValueChange = { hoursText = it },
-                    label = { Text("Часы") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    enabled = !useFixed,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Поле «Часы» показываем только для почасовой
+                if (payMode == PayMode.HOURLY) {
+                    OutlinedTextField(
+                        value = hoursText,
+                        onValueChange = { hoursText = it },
+                        label = { Text("Часы") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
+                // Необязательное поле ручной суммы (перебивает выбранный режим)
                 OutlinedTextField(
-                    value = payText,
-                    onValueChange = { payText = it },
-                    label = { Text("Сумма (фикс)") },
+                    value = customPayText,
+                    onValueChange = { customPayText = it },
+                    label = { Text("Сумма вручную (опционально)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    enabled = useFixed,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -129,20 +145,34 @@ fun AddShiftDialog(
             TextButton(onClick = {
                 val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
                 val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                val pid = selectedProject?.id ?: 0L
 
-                val projectId = selectedProject?.id ?: 0L
-                val hours = hoursText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                val fixedPay = payText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                // Парсим ввод
+                val hours = hoursText.replace(",", ".").toDoubleOrNull() ?: 0.0
+                val manual = customPayText.replace(",", ".").toDoubleOrNull()
 
-                if (projectId != 0L) {
-                    onSave(date, projectId, hours, if (useFixed) fixedPay else 0.0, note)
+                // Если пользователь ввёл ручную сумму — она главнее
+                val customPay = when {
+                    manual != null -> manual
+                    else -> when (payMode) {
+                        PayMode.HOURLY -> 0.0 // расчёт по часам произойдёт по логике проекта
+                        PayMode.FIXED -> selectedProject?.fixed ?: 0.0
+                        PayMode.HALF_FIXED -> (selectedProject?.fixed ?: 0.0) * 0.5
+                    }
                 }
-            }) { Text("Сохранить") }
+
+                if (pid != 0L) onSave(date, pid, hours, customPay, note)
+            }) {
+                Text("Сохранить")
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        }
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddProjectDialog(
     onDismiss: () -> Unit,
@@ -190,8 +220,8 @@ fun AddProjectDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val hourly = hourlyText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                val fixed = fixedText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                val hourly = hourlyText.replace(",", ".").toDoubleOrNull() ?: 0.0
+                val fixed = fixedText.replace(",", ".").toDoubleOrNull() ?: 0.0
                 if (name.isNotBlank()) onSave(name.trim(), hourly, fixed)
             }) { Text("Сохранить") }
         },
