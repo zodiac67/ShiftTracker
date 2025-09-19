@@ -7,9 +7,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -22,6 +22,24 @@ import java.time.ZoneId
 
 private enum class PayMode { HOURLY, FIXED, HALF_FIXED }
 
+/** Пытаемся достать фикс-ставку у проекта, как бы она ни называлась. */
+private fun ProjectEntity.fixedValueOrZero(): Double {
+    val candidates = listOf(
+        "fixed", "fixedPay", "fixed_rate", "fixedAmount", "fix", "fixedPrice"
+    )
+    for (name in candidates) {
+        try {
+            val f = this::class.java.getDeclaredField(name)
+            f.isAccessible = true
+            val v = f.get(this)
+            if (v is Number) return v.toDouble()
+        } catch (_: Throwable) {
+            // пробуем следующее имя
+        }
+    }
+    return 0.0
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddShiftDialog(
@@ -29,40 +47,40 @@ fun AddShiftDialog(
     onDismiss: () -> Unit,
     onSave: (date: LocalDate, projectId: Long, hours: Double, customPay: Double, note: String) -> Unit
 ) {
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
+    val datePickerState =
+        rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
 
     var expanded by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf(projects.firstOrNull()) }
 
     var payMode by remember { mutableStateOf(PayMode.HOURLY) }
-    var hoursText by remember { mutableStateOf("") }       // ввод часов (для почасовой)
-    var customPayText by remember { mutableStateOf("") }   // ручная сумма (необязательно)
+    var hoursText by remember { mutableStateOf("") }        // ввод часов (для почасовой)
+    var customPayText by remember { mutableStateOf("") }    // ручная сумма (необязательно)
     var note by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth(), // даст максимум ширины
-        // Убираем платформенное ограничение ширины, чтобы календарь не «обрезался» на узких экранах
         properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(),
         title = { Text("Новая смена") },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()), // чтобы всё всегда помещалось
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("Выберите дату", style = MaterialTheme.typography.titleMedium)
-                // Сам календарь растягиваем на всю ширину
+
                 DatePicker(
                     state = datePickerState,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Выбор проекта
+                // Проект
                 ExposedDropdownMenuBox(
                     expanded = expanded,
-                    onExpandedChange = { expanded = !expanded },
+                    onExpandedChange = { expanded = !expanded }
                 ) {
                     OutlinedTextField(
                         value = selectedProject?.name ?: "",
@@ -81,25 +99,22 @@ fun AddShiftDialog(
                         projects.forEach { p ->
                             DropdownMenuItem(
                                 text = { Text(p.name) },
-                                onClick = {
-                                    selectedProject = p
-                                    expanded = false
-                                }
+                                onClick = { selectedProject = p; expanded = false }
                             )
                         }
                     }
                 }
 
-                // Режим оплаты под проектом: Часы / Фикс / ½ фикс
+                // Режим оплаты под проектом
                 Text("Оплата", style = MaterialTheme.typography.titleSmall)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    PayMode.values().forEachIndexed { index, mode ->
-                        val first = index == 0
-                        val last = index == PayMode.values().lastIndex
+                val modes = PayMode.values()
+                val count = modes.size
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    modes.forEachIndexed { index, mode ->
                         SegmentedButton(
                             selected = payMode == mode,
                             onClick = { payMode = mode },
-                            shape = SegmentedButtonDefaults.itemShape(first = first, last = last),
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = count),
                             label = {
                                 Text(
                                     when (mode) {
@@ -113,7 +128,6 @@ fun AddShiftDialog(
                     }
                 }
 
-                // Поле «Часы» показываем только для почасовой
                 if (payMode == PayMode.HOURLY) {
                     OutlinedTextField(
                         value = hoursText,
@@ -124,7 +138,6 @@ fun AddShiftDialog(
                     )
                 }
 
-                // Необязательное поле ручной суммы (перебивает выбранный режим)
                 OutlinedTextField(
                     value = customPayText,
                     onValueChange = { customPayText = it },
@@ -144,31 +157,27 @@ fun AddShiftDialog(
         confirmButton = {
             TextButton(onClick = {
                 val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
-                val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
-                val pid = selectedProject?.id ?: 0L
+                val date = Instant.ofEpochMilli(millis)
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
 
-                // Парсим ввод
+                val pid = selectedProject?.id ?: 0L
                 val hours = hoursText.replace(",", ".").toDoubleOrNull() ?: 0.0
                 val manual = customPayText.replace(",", ".").toDoubleOrNull()
 
-                // Если пользователь ввёл ручную сумму — она главнее
+                val projectFixed = selectedProject?.fixedValueOrZero() ?: 0.0
                 val customPay = when {
                     manual != null -> manual
                     else -> when (payMode) {
-                        PayMode.HOURLY -> 0.0 // расчёт по часам произойдёт по логике проекта
-                        PayMode.FIXED -> selectedProject?.fixed ?: 0.0
-                        PayMode.HALF_FIXED -> (selectedProject?.fixed ?: 0.0) * 0.5
+                        PayMode.HOURLY -> 0.0             // расчёт по часам сделает слой данных
+                        PayMode.FIXED -> projectFixed
+                        PayMode.HALF_FIXED -> projectFixed * 0.5
                     }
                 }
 
                 if (pid != 0L) onSave(date, pid, hours, customPay, note)
-            }) {
-                Text("Сохранить")
-            }
+            }) { Text("Сохранить") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена") }
-        }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
     )
 }
 
