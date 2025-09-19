@@ -17,8 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.shifttracker.data.ShiftWithProject
 import java.time.LocalDate
-import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,10 +32,16 @@ fun MainScreen(vm: MainViewModel) {
     var showAddProject by remember { mutableStateOf(false) }
     var showContact by remember { mutableStateOf(false) }
 
+    val monthTitle = remember(ym) {
+        ym.atDay(1)
+            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.getDefault()))
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("${ym.month.name.lowercase().replaceFirstChar { it.titlecase() }} ${ym.year}") },
+                title = { Text(monthTitle) },
                 navigationIcon = { IconButton(onClick = vm::prevMonth) { Icon(Icons.Filled.ArrowBack, null) } },
                 actions = {
                     IconButton(onClick = vm::nextMonth) { Icon(Icons.Filled.ArrowForward, null) }
@@ -48,7 +54,10 @@ fun MainScreen(vm: MainViewModel) {
             FloatingActionButton(onClick = { showAddShift = true }) { Icon(Icons.Filled.Add, null) }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             ElevatedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Итоги", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -76,12 +85,16 @@ fun MainScreen(vm: MainViewModel) {
             projects = projects,
             onDismiss = { showAddShift = false },
             onSave = { date, projectId, hours, customPay, note ->
-                vm.addShift(date, projectId, hours, customPay, note); showAddShift = false
+                vm.addShift(date, projectId, hours, customPay, note)
+                showAddShift = false
             }
         )
     }
     if (showAddProject) {
-        AddProjectDialog(onDismiss = { showAddProject = false }, onSave = { n, h, f -> vm.addProject(n,h,f); showAddProject = false })
+        AddProjectDialog(
+            onDismiss = { showAddProject = false },
+            onSave = { n, h, f -> vm.addProject(n, h, f); showAddProject = false }
+        )
     }
     if (showContact) {
         ContactDialog(onDismiss = { showContact = false })
@@ -90,7 +103,8 @@ fun MainScreen(vm: MainViewModel) {
 
 @Composable
 private fun ShiftRow(item: ShiftWithProject, onDelete: () -> Unit) {
-    val s = item.shift; val p = item.project
+    val s = item.shift
+    val p = item.project
     ElevatedCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -125,7 +139,9 @@ fun ContactDialog(onDismiss: () -> Unit) {
                 val tgUri = android.net.Uri.parse("tg://resolve?domain=Zodiac767")
                 val tgIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, tgUri)
                 tgIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                try { context.startActivity(tgIntent) } catch (e: Exception) {
+                try {
+                    context.startActivity(tgIntent)
+                } catch (e: Exception) {
                     val webUri = android.net.Uri.parse("https://t.me/Zodiac767")
                     val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, webUri)
                     webIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
