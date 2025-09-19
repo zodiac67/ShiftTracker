@@ -5,11 +5,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -22,22 +26,12 @@ import java.time.ZoneId
 
 private enum class PayMode { HOURLY, FIXED, HALF_FIXED }
 
-/** Пытаемся достать фикс-ставку у проекта, как бы она ни называлась. */
+/** Фикс за смену из проекта (твоё поле называется fixedPerShift). */
 private fun ProjectEntity.fixedValueOrZero(): Double {
-    val candidates = listOf(
-        "fixed", "fixedPay", "fixed_rate", "fixedAmount", "fix", "fixedPrice"
-    )
-    for (name in candidates) {
-        try {
-            val f = this::class.java.getDeclaredField(name)
-            f.isAccessible = true
-            val v = f.get(this)
-            if (v is Number) return v.toDouble()
-        } catch (_: Throwable) {
-            // пробуем следующее имя
-        }
-    }
-    return 0.0
+    return runCatching {
+        val f = this::class.java.getDeclaredField("fixedPerShift").apply { isAccessible = true }
+        (f.get(this) as? Number)?.toDouble() ?: 0.0
+    }.getOrDefault(0.0)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,16 +41,16 @@ fun AddShiftDialog(
     onDismiss: () -> Unit,
     onSave: (date: LocalDate, projectId: Long, hours: Double, customPay: Double, note: String) -> Unit
 ) {
-    val datePickerState =
-        rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
 
     var expanded by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf(projects.firstOrNull()) }
 
     var payMode by remember { mutableStateOf(PayMode.HOURLY) }
-    var hoursText by remember { mutableStateOf("") }        // ввод часов (для почасовой)
-    var customPayText by remember { mutableStateOf("") }    // ручная сумма (необязательно)
+    var hoursText by remember { mutableStateOf("") }
+    var customPayText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -71,31 +65,18 @@ fun AddShiftDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("Выберите дату", style = MaterialTheme.typography.titleMedium)
+                DatePicker(state = datePickerState, modifier = Modifier.fillMaxWidth())
 
-                DatePicker(
-                    state = datePickerState,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Проект
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                     OutlinedTextField(
-                        value = selectedProject?.name ?: "",
+                        value = selectedProject?.name.orEmpty(),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Проект") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         projects.forEach { p ->
                             DropdownMenuItem(
                                 text = { Text(p.name) },
@@ -105,16 +86,14 @@ fun AddShiftDialog(
                     }
                 }
 
-                // Режим оплаты под проектом
                 Text("Оплата", style = MaterialTheme.typography.titleSmall)
                 val modes = PayMode.values()
-                val count = modes.size
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     modes.forEachIndexed { index, mode ->
                         SegmentedButton(
                             selected = payMode == mode,
-                            onClick = { payMode = mode },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = count),
+                            onClick = { payMode = mode; error = null },
+                            shape = SegmentedButtonDefaults.itemShape(index, modes.size),
                             label = {
                                 Text(
                                     when (mode) {
@@ -131,7 +110,7 @@ fun AddShiftDialog(
                 if (payMode == PayMode.HOURLY) {
                     OutlinedTextField(
                         value = hoursText,
-                        onValueChange = { hoursText = it },
+                        onValueChange = { hoursText = it; error = null },
                         label = { Text("Часы") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth()
@@ -140,7 +119,7 @@ fun AddShiftDialog(
 
                 OutlinedTextField(
                     value = customPayText,
-                    onValueChange = { customPayText = it },
+                    onValueChange = { customPayText = it; error = null },
                     label = { Text("Сумма вручную (опционально)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth()
@@ -152,29 +131,52 @@ fun AddShiftDialog(
                     label = { Text("Заметка") },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                if (error != null) {
+                    Text(error!!, color = MaterialTheme.colorScheme.error)
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
+                val project = selectedProject
+                if (project == null) { error = "Выберите проект"; return@TextButton }
+
                 val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
-                val date = Instant.ofEpochMilli(millis)
-                    .atZone(ZoneId.systemDefault()).toLocalDate()
+                val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
 
-                val pid = selectedProject?.id ?: 0L
-                val hours = hoursText.replace(",", ".").toDoubleOrNull() ?: 0.0
                 val manual = customPayText.replace(",", ".").toDoubleOrNull()
+                val projectFixed = project.fixedValueOrZero()
 
-                val projectFixed = selectedProject?.fixedValueOrZero() ?: 0.0
-                val customPay = when {
-                    manual != null -> manual
-                    else -> when (payMode) {
-                        PayMode.HOURLY -> 0.0             // расчёт по часам сделает слой данных
-                        PayMode.FIXED -> projectFixed
-                        PayMode.HALF_FIXED -> projectFixed * 0.5
+                val (hours, customPay) = when (payMode) {
+                    PayMode.HOURLY -> {
+                        val h = hoursText.replace(",", ".").toDoubleOrNull()
+                        if (h == null || h <= 0.0) {
+                            error = "Укажите количество часов"; return@TextButton
+                        }
+                        // customPay=0.0 → рассчитает слой данных по ставке проекта
+                        h to (manual ?: 0.0)
+                    }
+                    PayMode.FIXED -> {
+                        val pay = manual ?: projectFixed
+                        if (pay <= 0.0) {
+                            error = "Нет фикс-ставки у проекта. Введите сумму вручную."
+                            return@TextButton
+                        }
+                        1.0 to pay // hours > 0 — чтобы запись не отбрасывалась
+                    }
+                    PayMode.HALF_FIXED -> {
+                        val pay = manual ?: (projectFixed * 0.5)
+                        if (pay <= 0.0) {
+                            error = "Нет фикс-ставки у проекта. Введите сумму вручную."
+                            return@TextButton
+                        }
+                        1.0 to pay
                     }
                 }
 
-                if (pid != 0L) onSave(date, pid, hours, customPay, note)
+                onSave(date, project.id, hours, customPay, note)
+                onDismiss()
             }) { Text("Сохранить") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
@@ -222,7 +224,7 @@ fun AddProjectDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    "Укажи ИЛИ почасовую ставку, ИЛИ фикс — достаточно одного поля.",
+                    "Заполни ИЛИ почасовую, ИЛИ фикс — достаточно одного поля.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
