@@ -7,7 +7,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.SegmentedButton
@@ -26,7 +25,7 @@ import java.time.ZoneId
 
 private enum class PayMode { HOURLY, FIXED, HALF_FIXED }
 
-/** Фикс за смену из проекта (твоё поле называется fixedPerShift). */
+/** Фикс за смену из проекта (поле fixedPerShift). */
 private fun ProjectEntity.fixedValueOrZero(): Double {
     return runCatching {
         val f = this::class.java.getDeclaredField("fixedPerShift").apply { isAccessible = true }
@@ -67,16 +66,26 @@ fun AddShiftDialog(
                 Text("Выберите дату", style = MaterialTheme.typography.titleMedium)
                 DatePicker(state = datePickerState, modifier = Modifier.fillMaxWidth())
 
-                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                // Проект
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
                     OutlinedTextField(
                         value = selectedProject?.name.orEmpty(),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Проект") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
                     )
-                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    // ВАЖНО: здесь используем DropdownMenu вместо ExposedDropdownMenu
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
                         projects.forEach { p ->
                             DropdownMenuItem(
                                 text = { Text(p.name) },
@@ -86,6 +95,7 @@ fun AddShiftDialog(
                     }
                 }
 
+                // Режим оплаты
                 Text("Оплата", style = MaterialTheme.typography.titleSmall)
                 val modes = PayMode.values()
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -154,8 +164,7 @@ fun AddShiftDialog(
                         if (h == null || h <= 0.0) {
                             error = "Укажите количество часов"; return@TextButton
                         }
-                        // customPay=0.0 → рассчитает слой данных по ставке проекта
-                        h to (manual ?: 0.0)
+                        h to (manual ?: 0.0) // 0.0 → рассчитает слой данных по ставке проекта
                     }
                     PayMode.FIXED -> {
                         val pay = manual ?: projectFixed
@@ -163,7 +172,7 @@ fun AddShiftDialog(
                             error = "Нет фикс-ставки у проекта. Введите сумму вручную."
                             return@TextButton
                         }
-                        1.0 to pay // hours > 0 — чтобы запись не отбрасывалась
+                        1.0 to pay
                     }
                     PayMode.HALF_FIXED -> {
                         val pay = manual ?: (projectFixed * 0.5)
