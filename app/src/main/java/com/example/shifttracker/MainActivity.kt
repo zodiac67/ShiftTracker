@@ -3,18 +3,16 @@ package com.example.shifttracker
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.shifttracker.ui.MainScreen
-import com.example.shifttracker.ui.MainViewModel
-import com.example.shifttracker.ui.theme.AppTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import com.example.shifttracker.ui.App   // ← ДОБАВЬ импорт
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AppTheme {
-                val vm: MainViewModel = viewModel(factory = MainViewModel.Factory(applicationContext))
-                MainScreen(vm)
+            MaterialTheme {
+                Surface { App() }  // ← экран из пакета ui
             }
         }
     }
