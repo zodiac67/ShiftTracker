@@ -27,8 +27,8 @@ android {
 
     // Compose
     buildFeatures { compose true }
-    // Под Kotlin 1.9.22–1.9.24 → 1.5.15; если у тебя Kotlin 2.x — поставь 1.6.10
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
+    // Совместимо с Kotlin 1.9.24 (твоим в CI)
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
 
     // Java/Kotlin 17
     compileOptions {
@@ -42,11 +42,10 @@ android {
     }
 }
 
-// Не обязательно, но можно зафиксировать toolchain на 17
 kotlin { jvmToolchain(17) }
 
 dependencies {
-    // Compose BOM (тянет согласованные версии UI/Material3/…)
+    // Compose BOM
     def composeBom = platform("androidx.compose:compose-bom:2024.09.00")
     implementation composeBom
     androidTestImplementation composeBom
