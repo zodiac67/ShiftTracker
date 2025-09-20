@@ -4,12 +4,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerState
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.input.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -20,15 +22,13 @@ import kotlin.math.roundToInt
 @Composable
 fun App() {
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("ShiftTracker") })
-        }
+        topBar = { TopAppBar(title = { Text("ShiftTracker") }) }
     ) { padding ->
         Box(Modifier.padding(padding)) { ShiftScreen() }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class) // ← ВАЖНО: импорт снизу
 @Composable
 fun ShiftScreen() {
     var isFixed by remember { mutableStateOf(true) }
@@ -127,7 +127,7 @@ fun FullWidthDatePickerDialog(
                     state = state,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer(scaleX = 0.95f, scaleY = 0.95f) // немного «ужать» при крупном шрифте
+                        .graphicsLayer(scaleX = 0.95f, scaleY = 0.95f) // чуть «ужать» при крупном шрифте
                 )
                 Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("Отмена") }
@@ -154,7 +154,7 @@ fun AmountField(label: String, value: String, onChange: (String) -> Unit) {
             }
             onChange(filtered)
         },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        // без KeyboardOptions — чтобы не требовалась доп. зависимость
         label = { Text(label) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth()
@@ -197,3 +197,6 @@ fun ShiftCard(shift: Shift) {
 private fun Double.format1(): String = String.format(Locale.US, "%.1f", this)
 private fun String.parseMoney(): BigDecimal =
     this.replace(',', '.').toBigDecimalOrNull() ?: BigDecimal.ZERO
+
+// Импорт для @OptIn
+import androidx.compose.material3.ExperimentalMaterial3Api
