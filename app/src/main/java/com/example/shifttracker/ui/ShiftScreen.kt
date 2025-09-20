@@ -19,8 +19,12 @@ import kotlin.math.roundToInt
 
 @Composable
 fun App() {
-    Scaffold(topBar = { SmallTopAppBar(title = { Text("ShiftTracker") }) }) { p ->
-        Box(Modifier.padding(p)) { ShiftScreen() }
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("ShiftTracker") })
+        }
+    ) { padding ->
+        Box(Modifier.padding(padding)) { ShiftScreen() }
     }
 }
 
@@ -123,7 +127,7 @@ fun FullWidthDatePickerDialog(
                     state = state,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer(scaleX = 0.95f, scaleY = 0.95f) // чуть «ужать» при большом шрифте
+                        .graphicsLayer(scaleX = 0.95f, scaleY = 0.95f) // немного «ужать» при крупном шрифте
                 )
                 Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("Отмена") }
@@ -177,8 +181,10 @@ fun ShiftCard(shift: Shift) {
             Text(shift.dateMillis.asDateString(), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             if (shift.isFixed && shift.fixedAmount != null) {
+                // ФИКС — без часов
                 Text("Сумма: ${shift.fixedAmount.pretty()} ₽", style = MaterialTheme.typography.bodyLarge)
             } else {
+                // Почасовая — часы и ставка
                 val hours = (shift.minutes / 60.0).format1()
                 val rate = (shift.hourlyRate ?: BigDecimal.ZERO).pretty()
                 Text("$hours ч · $rate ₽/ч", style = MaterialTheme.typography.bodyLarge)
